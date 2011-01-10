@@ -7,7 +7,7 @@ import java.util.Locale;
 
 public class TokenizationUtils {
 
-	public final static char DEFAULT_MARK = '^';
+	public final static char MARK = '^';
 
 	public static List<Integer> findBoundaries(String text, TokenType type) {
 		return findBoundaries(text, type, Locale.getDefault());
@@ -26,11 +26,11 @@ public class TokenizationUtils {
 	}
 
 	public static String markBoundaries(String text, TokenType type) {
-		return markBoundaries(text, type, Locale.getDefault(), DEFAULT_MARK);
+		return markBoundaries(text, type, Locale.getDefault(), MARK);
 	}
 
 	public static String markBoundaries(String text, TokenType type, Locale locale) {
-		return markBoundaries(text, type, locale, DEFAULT_MARK);
+		return markBoundaries(text, type, locale, MARK);
 	}
 
 	public static String markBoundaries(String text, TokenType type, char mark) {
