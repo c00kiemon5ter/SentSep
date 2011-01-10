@@ -2,15 +2,11 @@ package application;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
-import utils.TokenType;
-import utils.TokenizationUtils;
 
 /**
  *
@@ -18,29 +14,33 @@ import utils.TokenizationUtils;
  */
 public class SentSep {
 
-	private TokenType type;
-	private Locale locale;
+	private final Locale locale = new Locale("el", "GR");
+	private final String charset = "ISO-8859-7";
 
-	public static void main(String[] args) throws FileNotFoundException, IOException {
-		SentSep ss = new SentSep(TokenType.SENTENCE, new Locale("el", "GR"));
+	public static void main(String[] args) {
 		if (args.length != 2) {
-			ss.usage();
+			usage();
 		}
-		List<File> trainlist = ss.listFiles(args[0]);
-		List<File> testlist = ss.listFiles(args[1]);
-		List<String> traindocs = ss.readFiles(trainlist);
-		List<String> testdocs = ss.readFiles(testlist);
-		ss.train(traindocs);
-		ss.evaluate(testdocs);
-		ss.testUtils();
+		SentSep ss = new SentSep();
+
+		/* train */
+		System.out.printf("==> Training Phase\n:: Reading directory contents: %s\n", args[0]);
+		List<File> trainfiles = ss.listFiles(args[0]);
+		List<String> traintexts = ss.readFiles(trainfiles);
+		System.out.printf(":: Training - Collection size: %d\n", traintexts.size());
+		ss.train(traintexts);
+
+		/* evaluate */
+		System.out.printf("==> Evaluation Phase\n:: Reading directory contents: %s\n", args[1]);
+		List<File> testfiles = ss.listFiles(args[1]);
+		List<String> testtexts = ss.readFiles(testfiles);
+		System.out.printf(":: Evaluating - Collection size: %d\n", testtexts.size());
+		ss.evaluate(testtexts);
+
+		//ss.test();
 	}
 
-	public SentSep(TokenType type, Locale locale) {
-		this.type = type;
-		this.locale = locale;
-	}
-
-	private void usage() {
+	private static void usage() {
 		System.err.printf("usage: java -jar %s "
 				  + "training_collection_dir "
 				  + "testing_collection_dir\n",
@@ -52,36 +52,42 @@ public class SentSep {
 		return Arrays.asList(new File(dirname).listFiles());
 	}
 
-	private List<String> readFiles(List<File> trainlist) throws FileNotFoundException, IOException {
-		List<String> documents = new ArrayList<String>(trainlist.size());
+	private List<String> readFiles(List<File> trainlist) {
+		List<String> texts = new ArrayList<String>(trainlist.size());
 		Scanner scanner;
 		for (File file : trainlist) {
-			scanner = new Scanner(file, "ISO-8859-7");
-			StringBuilder document = new StringBuilder();
-			while (scanner.hasNextLine()) {
-				document.append(scanner.nextLine());
-				document.append(System.getProperty("line.separator"));
+			try {
+				scanner = new Scanner(file, charset);
+			} catch (FileNotFoundException fnfe) {
+				System.err.printf("--> ERROR: Couldnt read file: %s - Skipping\n", file);
+				continue;
 			}
-			documents.add(document.toString().trim());
+			StringBuilder text = new StringBuilder();
+			while (scanner.hasNextLine()) {
+				text.append(scanner.nextLine());
+				text.append(System.getProperty("line.separator"));
+			}
+			texts.add(text.toString().trim());
 			scanner.close();
 		}
-		return documents;
+		return texts;
 	}
 
-	private void train(List<String> documents) {
+	private void train(List<String> trainTexts) {
+		// TODO: kNN nearest neighbor search with distance ratio proximity
 	}
 
-	private void evaluate(List<String> testdocs) {
+	private void evaluate(List<String> testTexts) {
 	}
 
-	private void testUtils() {
+	private void test() {
 		String en = "The name org.gnome.SessionManager was not provided "
 			    + "by any government. What about the U.K. or the U.S. "
 			    + "government? She stopped. She said, \"Hello there.\" "
 			    + "and then went on. It's what Mr. Brown would do. "
 			    + "Also that's her ip: 192.168.0.1. It's a deal. "
 			    + "It's their decision, said the U.S. What can I say?";
-		String gr = "Τελειώνει η \"προστασία\" των μισθώσεων κατοικιών\n"
+		String el = "Τελειώνει η \"προστασία\" των μισθώσεων κατοικιών\n"
 			    + "ΛΗΓΕΙ σήμερα και τυπικά το προστατευτικό καθεστώς των μισθώσεων κατοικιών, "
 			    + "το οποίο ουσιαστικά έχει λήξει από τον περασμένο Ιούλιο, οπότε τα ενοίκια "
 			    + "κατοικιών είχαν μπει στην τροχιά της πλήρους απελευθέρωσης. "
@@ -103,17 +109,17 @@ public class SentSep {
 			    + "δημιουργεί -όπως είναι επόμενο- τριβές ανάμεσα σε μισθωτές και εκμισθωτές, "
 			    + "πιστεύεται όμως ότι δεν πρόκειται να προκαλέσει ιδιαίτερα προβλήματα στο χώρο "
 			    + "της ενοικιαζόμενης κατοικίας.";
-		String text = en;
+		String text = el;
 
-		List<Integer> bounds = TokenizationUtils.findBoundaries(text, type, locale);
+		List<Integer> bounds = SentenceTokenizer.findSentenceBoundaries(text, locale);
 		System.out.println(bounds.toString());
 		System.out.println("---------------------");
 
-		String marked = TokenizationUtils.markBoundaries(text, type, locale);
-		System.out.printf("%s\n%s\n", text, marked);
+		String marked = SentenceTokenizer.markSentenceBoundaries(text, locale);
+		System.out.printf("%s\n%s\n", text.replaceAll("\n", " "), marked);
 		System.out.println("---------------------");
 
-		List<String> tokens = TokenizationUtils.extractTokens(text, type, locale);
+		List<String> tokens = SentenceTokenizer.extractSentences(text, locale);
 		for (String token : tokens) {
 			System.out.println(token);
 		}
