@@ -1,5 +1,8 @@
 package application;
 
+import classifiers.Classifier;
+import classifiers.KNNClassifier;
+import core.Text;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -7,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
+import similarity.SentSepSim;
 
 /**
  *
@@ -16,29 +20,7 @@ public class SentSep {
 
 	private final Locale locale = new Locale("el", "GR");
 	private final String charset = "ISO-8859-7";
-
-	public static void main(String[] args) {
-		if (args.length != 2) {
-			usage();
-		}
-		SentSep ss = new SentSep();
-
-		/* train */
-		System.out.printf("==> Training Phase\n:: Reading directory contents: %s\n", args[0]);
-		List<File> trainfiles = ss.listFiles(args[0]);
-		List<String> traintexts = ss.readFiles(trainfiles);
-		System.out.printf(":: Training - Collection size: %d\n", traintexts.size());
-		ss.train(traintexts);
-
-		/* evaluate */
-		System.out.printf("==> Evaluation Phase\n:: Reading directory contents: %s\n", args[1]);
-		List<File> testfiles = ss.listFiles(args[1]);
-		List<String> testtexts = ss.readFiles(testfiles);
-		System.out.printf(":: Evaluating - Collection size: %d\n", testtexts.size());
-		ss.evaluate(testtexts);
-
-		//ss.test();
-	}
+	private final int k = 5;
 
 	private static void usage() {
 		System.err.printf("usage: java -jar %s "
@@ -46,6 +28,29 @@ public class SentSep {
 				  + "testing_collection_dir\n",
 				  SentSep.class.getSimpleName());
 		System.exit(1);
+	}
+
+	public static void main(String[] args) {
+		if (args.length != 2) {
+			usage();
+		}
+
+		SentSep ss = new SentSep();
+		Classifier<Text> knn = new KNNClassifier<Text>(ss.k);
+
+		/* train */
+		System.out.printf("==> Training Phase\n:: Reading contents of directory: %s\n", args[0]);
+		List<String> traintexts = ss.readFiles(ss.listFiles(args[0]));
+		System.out.printf(":: Training - Collection size: %d\n", traintexts.size());
+		knn.train(ss.categorize(traintexts));
+
+		/* classify */
+		System.out.printf("==> Classification Phase\n:: Reading contents of directory: %s\n", args[1]);
+		List<String> testtexts = ss.readFiles(ss.listFiles(args[1]));
+		System.out.printf(":: Classifying - Collection size: %d\n", testtexts.size());
+		List<Text> classified = knn.classify(ss.testize(testtexts), new SentSepSim());
+
+		//test();
 	}
 
 	private List<File> listFiles(String dirname) {
@@ -73,14 +78,25 @@ public class SentSep {
 		return texts;
 	}
 
-	private void train(List<String> trainTexts) {
-		// TODO: kNN nearest neighbor search with distance ratio proximity
+	private List<Text> categorize(List<String> trainTexts) {
+		List<Text> categorized = new ArrayList<Text>(trainTexts.size());
+		for (String traintext : trainTexts) {
+			// TODO: apply category - what ? how ?
+			Text text = new Text(traintext, true);
+			categorized.add(text);
+		}
+		return categorized;
 	}
 
-	private void evaluate(List<String> testTexts) {
+	private List<Text> testize(List<String> testTexts) {
+		List<Text> tests = new ArrayList<Text>(testTexts.size());
+		for (String text : testTexts) {
+			tests.add(new Text(text));
+		}
+		return tests;
 	}
 
-	private void test() {
+	private static void test() {
 		String en = "The name org.gnome.SessionManager was not provided "
 			    + "by any government. What about the U.K. or the U.S. "
 			    + "government? She stopped. She said, \"Hello there.\" "
@@ -109,7 +125,9 @@ public class SentSep {
 			    + "δημιουργεί -όπως είναι επόμενο- τριβές ανάμεσα σε μισθωτές και εκμισθωτές, "
 			    + "πιστεύεται όμως ότι δεν πρόκειται να προκαλέσει ιδιαίτερα προβλήματα στο χώρο "
 			    + "της ενοικιαζόμενης κατοικίας.";
+
 		String text = el;
+		Locale locale = new Locale("el", "GR");
 
 		List<Integer> bounds = SentenceTokenizer.findSentenceBoundaries(text, locale);
 		System.out.println(bounds.toString());
